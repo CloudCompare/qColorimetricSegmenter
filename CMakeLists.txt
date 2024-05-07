@@ -1,15 +1,15 @@
-cmake_minimum_required( VERSION 3.0 )
+cmake_minimum_required( VERSION 3.5 )
 
 option( PLUGIN_STANDARD_QCOLORIMETRIC_SEGMENTER "Check to install colorimetric segmenter plugin" OFF )
 
 if ( PLUGIN_STANDARD_QCOLORIMETRIC_SEGMENTER )
 
-    project( QCOLORIMETRIC_SEGMENTER_PLUGIN )
+	project( QCOLORIMETRIC_SEGMENTER_PLUGIN )
 
 	AddPlugin( NAME ${PROJECT_NAME} )
 
 	include_directories( ${CloudCompare_SOURCE_DIR} )
-	
+
 	target_sources( ${PROJECT_NAME}
 		PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR}/qColorimetricSegmenter.cpp

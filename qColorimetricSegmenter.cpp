@@ -427,7 +427,7 @@ static bool KNNRegions(	ccPointCloud* basePointCloud,
 		//DGM: warning, the computeCloud2CloudDistances method doesn't return a distance value (but a status / error)
 		//distances are stored in the active scalar field (one per point!)
 		int result = CCCoreLib::DistanceComputationTools::computeCloud2CloudDistances(neighbourCloud.data(), regionCloud.data(), params);
-		if (result >= 0)
+		if (result >= CCCoreLib::DistanceComputationTools::DISTANCE_COMPUTATION_RESULTS::SUCCESS)
 		{
 			double meanDistance = 0.0;
 			for (unsigned i = 0; i < neighbourCloud->size(); ++i)

@@ -152,7 +152,7 @@ QList<QAction*> ColorimetricSegmenter::getActions()
 		// Connect appropriate signal
 		connect(m_action_filterScalar, &QAction::triggered, this, &ColorimetricSegmenter::filterScalar);
 	}
-	
+
 	if (!m_action_histogramClustering)
 	{
 		m_action_histogramClustering = new QAction("Histogram Clustering", this);
@@ -162,7 +162,7 @@ QList<QAction*> ColorimetricSegmenter::getActions()
 		// Connect appropriate signal
 		connect(m_action_histogramClustering, &QAction::triggered, this, &ColorimetricSegmenter::HistogramClustering);
 	}
-	
+
 	if (!m_action_kMeansClustering)
 	{
 		// Here we use the default plugin name, description, and icon,
@@ -236,9 +236,9 @@ void ColorimetricSegmenter::filterRgb()
 
 	// Retrieve parameters from dialog
 	RgbDialog rgbDlg(m_app->pickingHub(), m_app->getMainWindow());
-	
+
 	rgbDlg.show(); //necessary for setModal to be retained
-	
+
 	if (!rgbDlg.exec())
 		return;
 
@@ -399,7 +399,7 @@ static bool KNNRegions(	ccPointCloud* basePointCloud,
 						_RegionSet& neighbourRegions,
 						unsigned thresholdDistance)
 {
-	QScopedPointer<ccPointCloud> regionCloud(basePointCloud->partialClone(region.data()));
+	std::unique_ptr<ccPointCloud> regionCloud(basePointCloud->partialClone(region.data()));
 	if (!regionCloud)
 	{
 		//not enough memory
@@ -415,10 +415,10 @@ static bool KNNRegions(	ccPointCloud* basePointCloud,
 
 	std::vector<double> distancesToCentralRegion;
 	distancesToCentralRegion.reserve(regions.size());
-	
+
 	for (const _Region& r : regions)
 	{
-		QScopedPointer<ccPointCloud> neighbourCloud(basePointCloud->partialClone(r.data()));
+		std::unique_ptr<ccPointCloud> neighbourCloud(basePointCloud->partialClone(r.data()));
 		if (!neighbourCloud)
 		{
 			//not enough memory
@@ -426,7 +426,7 @@ static bool KNNRegions(	ccPointCloud* basePointCloud,
 		}
 		//DGM: warning, the computeCloud2CloudDistances method doesn't return a distance value (but a status / error)
 		//distances are stored in the active scalar field (one per point!)
-		int result = CCCoreLib::DistanceComputationTools::computeCloud2CloudDistances(neighbourCloud.data(), regionCloud.data(), params);
+		int result = CCCoreLib::DistanceComputationTools::computeCloud2CloudDistances(neighbourCloud.get(), regionCloud.get(), params);
 		if (result >= CCCoreLib::DistanceComputationTools::DISTANCE_COMPUTATION_RESULTS::SUCCESS)
 		{
 			double meanDistance = 0.0;
@@ -435,7 +435,7 @@ static bool KNNRegions(	ccPointCloud* basePointCloud,
 				meanDistance += neighbourCloud->getPointScalarValue(i);
 			}
 			meanDistance /= neighbourCloud->size();
-			
+
 			distancesToCentralRegion.push_back(meanDistance);
 		}
 		else
@@ -565,23 +565,23 @@ bool ColorimetricSegmenter::RegionGrowing(	RegionSet& regions,
 		{
 			unlabeledPoints.push_back(j);
 		}
-	
+
 		std::vector<unsigned> pointIndices;
-	
+
 		CCCoreLib::DgmOctree* octree = new CCCoreLib::DgmOctree(pointCloud); // used to search nearest neighbors
 		octree->build();
-	
+
 		// while there is points in {P} that haven’t been labeled
 		while (!unlabeledPoints.empty())
 		{
 			// push an unlabeled point into stack Points
 			pointIndices.push_back(unlabeledPoints.back());
 			unlabeledPoints.pop_back();
-		
+
 			// initialize a new region Rc and add current point to R
 			Region rc(new CCCoreLib::ReferenceCloud(pointCloud));
 			rc->addPointIndex(unlabeledPoints.back());
-		
+
 			// while stack Points is not empty
 			while (!pointIndices.empty())
 			{
@@ -600,7 +600,7 @@ bool ColorimetricSegmenter::RegionGrowing(	RegionSet& regions,
 					nNSS.minNumberOfNeighbors = TNN;
 				}
 				octree->findNearestNeighborsStartingFromCell(nNSS);
-			
+
 				for (int i = 0; i < nNSS.pointsInNeighbourhood.size(); i++)
 				{
 					unsigned p = nNSS.pointsInNeighbourhood[i].pointIndex;
@@ -620,7 +620,7 @@ bool ColorimetricSegmenter::RegionGrowing(	RegionSet& regions,
 			}
 			regions.push_back(rc);
 		}
-	}	
+	}
 	catch (const std::bad_alloc&)
 	{
 		//not enough memory
@@ -716,7 +716,7 @@ bool ColorimetricSegmenter::RegionMergingAndRefinement(	RegionSet& mergedRegions
 		}
 		mergedRegions.push_back(merged);
 	}
-	
+
 	//std::vector<CCCoreLib::ReferenceCloud*>* knnResult;
 	// for each region Ri in {R’}
 	/*for (CCCoreLib::ReferenceCloud* r : *mergedRegionsRef)
@@ -864,9 +864,9 @@ void ColorimetricSegmenter::filterHSV()
 
 	// Retrieve parameters from dialog
 	HSVDialog hsvDlg(m_app->pickingHub(), m_app->getMainWindow());
-	
+
 	hsvDlg.show(); //necessary for setModal to be retained
-	
+
 	if (!hsvDlg.exec())
 		return;
 
@@ -980,7 +980,7 @@ void ColorimetricSegmenter::filterHSV()
 bool ColorimetricSegmenter::addPoint(CCCoreLib::ReferenceCloud& filteredCloud, unsigned int j)
 {
 	m_addPointError = !filteredCloud.addPointIndex(j);
-	
+
 	if (m_addPointError)
 	{
 		//not enough memory
@@ -1024,14 +1024,14 @@ void ColorimetricSegmenter::createCloud(ccPointCloud* cloud,
 		Q_ASSERT(false);
 		return;
 	}
-	
+
 	ccPointCloud* newCloud = cloud->partialClone(&referenceCloud);
 	if (!newCloud)
 	{
 		m_app->dispToConsole("Not enough memory");
 		return;
 	}
-	
+
 	newCloud->setName(name);
 	cloud->setEnabled(false);
 	if (cloud->getParent())
@@ -1292,7 +1292,7 @@ static ccPointCloud* ComputeKmeansClustering(ccPointCloud* theCloud, unsigned K,
 				{
 					continue;
 				}
-				
+
 				ccColor::Rgba newMean = ComputeAverageColor(*theCloud, cluster);
 
 				if (!meansHaveMoved && ColorDistance(clusterCenters[j], newMean) != 0)
